@@ -4,7 +4,6 @@ date: 2015-12-20 15:30:25
 categories: [Git, Hexo]
 tags: [Git, Hexo]
 ---
-# git的使用
 
 ## 配置
 
