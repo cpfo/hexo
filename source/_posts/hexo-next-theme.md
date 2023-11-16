@@ -121,7 +121,7 @@ busuanzi_count:
 
 ### 添加评论系统
 
-经过网上的查询和综合评估，选择了[walive](https://waline.js.org/guide/get-started/) 作为评论系统。
+经过网上的查询和综合评估，选择了[waline](https://waline.js.org/guide/get-started/) 作为评论系统。
 
 1. 首先需要注册和部署相关应用， 可以直接参考官方文档 [waline get-started](https://waline.js.org/guide/get-started/)
 
