@@ -13,6 +13,10 @@ docsify 可以快速帮你生成文档网站。不同于 GitBook、Hexo 的地�
 
 可以直接参考官方文档 [快速开始](https://docsify.js.org/#/zh-cn/quickstart)
 
+
+
+效果参考  [docsify页面](https://cpfe.github.io/#/)
+
 ## 相关配置
 
 ### index.html
