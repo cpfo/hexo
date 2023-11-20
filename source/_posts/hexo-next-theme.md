@@ -1,6 +1,7 @@
 ---
 title: hexo-next主题配置方式
 date: 2023-11-15 14:29:15
+categories: [工具]
 tags: hexo
 ---
 

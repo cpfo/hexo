@@ -1,7 +1,8 @@
 ---
 title: 使用docsify搭建github pages页面
 date: 2023-11-16 14:37:27
-tags:
+categories: 工具
+tags: [docsify]
 ---
 
 docsify 可以快速帮你生成文档网站。不同于 GitBook、Hexo 的地方是它不会生成静态的 `.html` 文件，

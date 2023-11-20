@@ -1,13 +1,15 @@
 ---
 title: nginx拦截非法host的请求
 date: 2023-11-20 16:58:44
-tags: nginx
+categories: [运维]
+tags: [nginx]
 ---
 
 
-在nginx的访问日志中发现了一些奇怪的host域名，并非是实际用到的，经过排查发现，可以在本地的hosts文件中指定ip和域名的映射关系，
-这样就可以通过访问一个任意的域名，来请求到对应的ip地址上面，因为nginx会使用默认server来处理未匹配到server_name的请求，可以通过这种方式来绕过waf等，或者访问到nginx中其他的servername下，
-会有一定的风险，需要将这种方式拦截掉
+在nginx的访问日志中发现了一些奇怪的host域名，并非是实际用到的，经过排查发现，可以在本地的hosts文件中指定ip和域名的映射关系， 这样就可以通过访问一个任意的域名，来请求到对应的ip地址上面，因为nginx会使用默认server来处理未匹配到server_name的请求，可以通过这种方式来绕过waf等，或者访问到nginx中其他的servername下， 会有一定的风险，需要将这种方式拦截掉
+
+<!-- more -->
+
 比如在hosts文件中指定ip对应 www.abc.com 
 > xx.xx.xx.xx www.abc.com
 

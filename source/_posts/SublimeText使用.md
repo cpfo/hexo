@@ -1,7 +1,7 @@
 ---
 title: Sublime使用
 date: 2015-12-20 15:30:25
-categories: [Sublime, 编辑器]
+categories: [编辑器]
 tags: [Sublime]
 ---
 
