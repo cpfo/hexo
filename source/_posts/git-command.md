@@ -4,6 +4,11 @@ date: 2015-12-20 15:30:25
 categories: [工具]
 tags: [Git]
 ---
+asasas
+as
+as
+as
+as
 
 ## 配置
 
@@ -12,6 +17,14 @@ tags: [Git]
 - git config user.name 查看用户名。
 
 <!-- more -->
+
+* 配置全局的用户名和邮箱
+如果不是个人机器，可以去掉global选项，仅针对当前仓库配置。
+* 
+```shell
+git config --global user.name "xxx"
+git config --global user.email "xxx"
+```
 
 ## 基础
 - **git init** 在目录中初始化仓库，使用git管理。
@@ -46,6 +59,8 @@ git add to_name
 - **git log** 显示日志
 git log -p -2 , `-p` 选项展开显示每次提交的内容差异，用 `-2` 则仅显示最近的两次更新
 
+> git log --pretty=oneline
+
 ### 撤销操作 REDO/UNDO
 
 参考 [How to undo (almost) anything with Git](https://github.blog/2015-06-08-how-to-undo-almost-anything-with-git/)
@@ -78,7 +93,9 @@ reset到指定的提交版本，丢弃后面产生的提交信息。reset 之后
 5. Redo after undo “local”
 
 reset之后，又想要把对应的提交还原回来。
-使用 `git reflog` and `git reset` 
+使用 `git reflog` and `git reset`
+
+reflog 记录有时限，且只在本地才有。
 
 如果想重新创建某个文件，使用 `git checkout <SHA> -- <filename>`
 
