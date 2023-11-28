@@ -1,7 +1,7 @@
 ---
 title: python函数
-categories: []
-tags: []
+categories: [技术]
+tags: [python]
 date: 2023-11-27 17:19:14
 ---
 
