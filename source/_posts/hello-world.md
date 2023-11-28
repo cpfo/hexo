@@ -12,7 +12,13 @@ Welcome to [Hexo](https://hexo.io/)! This is your very first post. Check [docume
 
 ``` bash
 $ hexo new "My New Post"
+
+ hexo new post -p folder/文章名1
+ 
+ // 就是在posts 下的 folder目录中创建了文章名1对应的文章。
+
 ```
+
 
 More info: [Writing](https://hexo.io/docs/writing.html)
 
