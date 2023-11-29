@@ -61,3 +61,192 @@ filter的关键在于正确实现一个筛选函数。
 ['Zoo', 'Credit', 'bob', 'about']
 ```
 
+# 返回函数
+
+高阶函数可以把函数作为结果返回，不是直接返回的值，调用函数时，返回的是函数，只有当再次调用返回函数时，才会进行计算。例如 
+
+```shell
+def lazy_sum(*args):
+    def sum():
+        ax = 0
+        for n in args:
+            ax = ax + n
+        return ax
+    return sum
+```
+
+在函数 `lazy_sum`中又定义了函数`sum`，内部函数可以引用外部函数的参数和局部变量，当lazy_sum返回函数sum时，相关参数和变量都保存在返回的函数中，这种称为 "闭包(Closure)"
+
+每次调用 `lazy_sum()`时，返回的是一个新的函数，两次调用的结果不相等。
+
+**闭包**
+
+>  返回闭包时牢记一点：返回函数不要引用任何循环变量，或者后续会发生变化的变量。
+
+**nonlocal**
+
+使用闭包时，内层函数引用了外层函数的局部变量，读取时没问题，如果修改，会报错
+
+> UnboundLocalError: cannot access local variable 'x' where it is not associated with a value
+
+例如
+```shell
+def inc():
+    x = 0
+    def fn():
+        # nonlocal x
+        x = x + 1
+        return x
+    return fn
+
+f = inc()
+print(f()) # 1
+print(f()) # 2
+```
+原因是 `x` 作为局部变量没有初始化，需要在fn函数内部加上一个 `nonlocal x` 的声明，加上后，解释器会把`fn()`内部的 `x` 看做外层函数的局部变量。
+
+>  使用闭包时，对外层变量赋值前，需要先使用nonlocal声明该变量不是当前函数的局部变量。
+
+# 匿名函数lambda
+
+我们在传入函数时，有时候不需要显示的定义函数，直接传入匿名函数更方便。例如
+
+```shell
+list(map(lambda x: x * x, [1, 2, 3, 4, 5, 6, 7, 8, 9]))
+```
+匿名函数 `lambda x: x * x` 实际上就是
+
+```shell
+def f(x):
+    return x * x
+```
+关键字 `lambda` 表示匿名函数，冒号前面的 `x` 表示参数。匿名函数只能有一个表达式，不用return， 返回值就是表达式的结果。
+
+匿名函数也是一个函数对象，也可以把匿名函数赋值给一个变量，再利用变量来调用该函数
+
+```shell
+>>> f = lambda x : x + x
+>>> f
+<function <lambda> at 0x000001A9659FA160>
+>>> f(5)
+10
+```
+也可以把匿名函数作为返回值返回
+```shell
+def build(x, y):
+    return lambda: x * x + y * y
+```
+# 装饰器
+
+由于函数是一个对象，函数可以赋值给一个变量，通过变量也能调用该函数。函数对象有一个 `__name__` 属性，可以拿到函数名。
+
+假设要增加函数的功能，不修改函数的定义，这种在代码运行期间动态增加功能的方式，称为 "装饰器"(Decorator)。 类似java的 `AOP`
+
+````shell
+
+def log(func):
+    # @functools.wraps(func)
+    def wrapper(*args, **kw):
+        print('call function %s' % func.__name__)
+        return func(*args, **kw)
+    return wrapper
+
+@log
+def now():
+    print('2023-11-01')
+
+now()
+````
+
+把`@log` 放到 `now()`函数的定义处，相当于执行了
+> now = log(now)
+
+原来的`now`函数依然存在，只是现在的 `now` 指向了新的函数。就是 `log` 中返回的 `wrapper` 函数。
+
+如果decorator本身需要传入参数，就需要再包一层函数。
+
+```shell
+
+def log(text):
+    def decorator(func):
+        # @functools.wraps(func)
+        def wrapper(*args, **kw):
+            print('%s %s()' % (text, func.__name__))
+            return func(*args, **kw)
+        
+        return wrapper
+    return decorator
+
+@log('执行了')
+def now():
+    print('2023-11-01')
+
+now()
+```
+
+上面的2种写法，会导致调用函数时，返回的`__name__` 发生变化，因为实际上函数名已经指向新的函数了。所以需要把原始函数的`__name__`等属性赋值给新函数， 否则有些依赖函数签名的代码会执行错误。
+
+使用内置的 `functools.wraps` 来进行处理。 如上面代码块中注释掉的部分。
+
+# 偏函数
+
+`functools` 模块提供了很多功能， 其中一个就是偏函数(Partial function)
+
+函数通过设定参数的默认值，可以降低调用难度，偏函数也可以做到，比如 `int()`类型转换
+
+**偏函数就是将某些参数固定住，简化调用**
+
+```shell
+>>> int('1111')
+1111
+>>> int('1111', base=2)
+15
+>>> int('1111', base=16)
+4369
+>>> int('1111', base=8)
+585
+```
+
+假设我们需要做大量的二进制转换，每次传入 `base=2`会很麻烦， 可以定义一个 int2() 函数， 默认把`base=2` 传入进去。
+
+```shell
+def int2(x, base=2):
+    return int(x, base)
+```
+
+`functools.partial`就是帮助我们创建一个偏函数，不需要自己定义 `int2()`
+
+```shell
+>>> import functools
+>>> int8=functools.partial(int, base=8)
+>>> int8('1111')
+585
+>>> int8('111100')
+37440
+>>> int8('11001')
+4609
+```
+
+所以`functools.partial`的作用就是， 把一个函数的某些参数固定住(设置默认值)， 返回一个新函数，调用新函数会更简单。
+
+新函数仅仅是把参数设置了默认值，但是调用的时候依然可以传入其他的值.
+```shell
+>>> int8('1111',  base=10)
+1111
+>>>
+```
+
+创建偏函数时，实际上可以接收函数对象、`*args`和`**kw`这3个参数
+当传入
+> max2 = functools.partial(max, 10)
+
+实际上会把`10`作为`*args`的一部分自动加到左边
+
+
+```shell
+max2(5, 6, 7)
+# 相当于:
+args = (10, 5, 6, 7)
+max(*args)
+```
+实际的结果是 `10`
