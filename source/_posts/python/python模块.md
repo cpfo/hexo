@@ -26,7 +26,6 @@ date: 2023-11-29 11:41:24
 如示例： `hello.py` 文件
 
 ```python
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
