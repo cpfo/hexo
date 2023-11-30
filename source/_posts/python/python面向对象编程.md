@@ -172,5 +172,87 @@ Python的“file-like object“就是一种鸭子类型。
 
 # 获取对象信息
 
+**type()**
 
+使用 `type()` 方法， 可以判断某个对象是什么类型。
+
+```shell
+>>> type(11)
+<class 'int'>
+>>> L=[1,2,3,4]
+>>> type(L)
+<class 'list'>
+>>> type('aa')
+<class 'str'>
+
+>>> def func():
+...   pass
+...
+>>>
+>>> type(func())
+<class 'NoneType'>
+>>> type(func)
+<class 'function'>
+>>>
+>>> type(abs)
+<class 'builtin_function_or_method'>
+>>>
+```
+
+`type()` 返回的是对象的Class类型。可以进行 `==` 比较，判断是否是相同的类。
+
+**使用isinstance()**
+
+如果有继承关系，使用`type()` 就不方便判断了， 可以使用 `isinstance()`
+
+`isinstance()`判断的是一个对象是否是该类型本身，或者位于该类型的父继承链上。
+
+能用`type()`判断的基本类型也可以用`isinstance()`判断。并且还可以判断一个变量是否是某些类型中的一种。
+
+```shell
+>>> isinstance([1,2,3], (list, tuple))
+True
+>>> isinstance([1,2,3], (dict, tuple))
+False
+>>> isinstance((1,2,3), (set, tuple))
+True
+>>>
+```
+
+所以可以优先使用 `isinstance()`来判断类型。
+
+**使用dir()**
+
+使用`dir()` 方法可以获取一个对象的所有属性和方法，返回的是一个包含字符串的list。
+
+仅仅把属性和方法列出来是不够的，配合`getattr()`、`setattr()`以及`hasattr()`，我们可以直接操作一个对象的状态
+
+如果试图获取不存在的属性，会抛出AttributeError的错误， 可以在方法中加上默认值。 例如：`getattr(obj, 'z', 404)`
+
+也可以使用 `hasattr()`，`getattr()` 判断和获取对象的方法。
+
+# 实例属性和类属性
+
+
+给实例绑定属性的方法是通过实例变量，或者通过self变量。
+
+```python
+class Student(object):
+    def __init__(self, name):
+        self.name = name
+
+s = Student('Bob')
+s.score = 90
+```
+
+但是，如果`Student`类本身需要绑定一个属性呢？可以直接在class中定义属性，这种属性是类属性，归`Student`类所有
+
+```python
+class Student(object):
+    name = 'Student'
+```
+
+类属性，类的所有实例都可以访问到。和java中继承很相似。
+
+在编写程序的时候，千万不要对实例属性和类属性使用相同的名字，避免出现错误。
 
