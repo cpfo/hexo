@@ -67,6 +67,8 @@ hexo clean && hexo g && hexo s
 ## Next主题配置
 主要是修改themes/next 文件夹内的`_config.yml` 文件里面的配置
 
+[参考官方文档](https://theme-next.iissnan.com/getting-started.html)
+
 ### 开启阅读时长
 1. npm安装插件
 
