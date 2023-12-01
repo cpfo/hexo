@@ -164,3 +164,47 @@ Waline 有服务端，支持评论管理。找到评论框，点击 登录 按�
 注册登录之后， 就可以对评论进行管理了。
 
 
+### hexo开启 mermaid
+
+`mermaid` 可以帮助在markdown中画流程图，时序图等
+
+首先需要在项目目录下面安装依赖
+
+>  npm i hexo-filter-mermaid-diagrams
+
+然后在配置中开启
+
+```yaml
+mermaid:
+  enable: true
+```
+
+下面就可以在markdown文件中添加对应的内容，页面就会自动渲染了， 如下面的例子
+
+
+**流程图**
+
+
+````yaml
+mermaid
+graph TD
+Start --> Stop
+````
+
+
+```mermaid
+graph TD
+Start --> Stop
+```
+
+**时间轴**
+
+```mermaid
+timeline
+      title History of Social Media Platform
+      2002 : LinkedIn
+      2004 : Facebook
+           : Google
+      2005 : Youtube
+      2006 : Twitter
+```
