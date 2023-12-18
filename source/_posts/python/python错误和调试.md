@@ -1,7 +1,7 @@
 ---
 title: python错误和调试
-categories: []
-tags: []
+categories: [技术]
+tags: [python]
 date: 2023-12-04 18:29:11
 ---
 
@@ -166,6 +166,122 @@ VS Code 插件。
 
 # 单元测试
 
+单元测试是用来对一个模块、一个函数或者一个类来进行正确性检验的测试工作。
+
+单元测试通过后，如果对代码做了修改，可以重新跑一遍单元测试，看是否通过，来判断修改是否对原来的逻辑造成了影响。
+
+编写单元测试时，我们需要编写一个测试类，从`unittest.TestCase`继承
+
+以`test`开头的方法就是测试方法，不以`test`开头的方法不被认为是测试方法，测试的时候不会被执行。
+
+对每一类测试都需要编写一个`test_xxx()`方法。由于`unittest.TestCase`提供了很多内置的条件判断，最常用的断言就是`assertEqual()`
+```python
+self.assertEqual(abs(-1), 1) # 断言函数返回的结果与1相等
+```
+
+另一种重要的断言就是期待抛出指定类型的Error
+
+**运行单元测试**
+
+最简单的运行方式是在`mydict_test.py`的最后加上两行代码，这样就可以把文件当做正常脚本运行。
+
+```python
+if __name__ == '__main__':
+    unittest.main()
+```
+
+另一种方法是在命令行通过参数`-m unittest`直接运行单元测试。
+
+这是推荐的做法，因为这样可以一次批量运行很多单元测试，并且，有很多工具可以自动来运行这些单元测试
+
+**setUp与tearDown**
+
+可以在单元测试中编写两个特殊的`setUp()`和`tearDown()`方法。这两个方法会分别在每调用一个测试方法的前后分别被执行。
+
+`setUp()`和`tearDown()`方法有什么用呢？设想你的测试需要启动一个数据库，这时，就可以在`setUp()`方法中连接数据库，在`tearDown()`方法中关闭数据库，这样，不必在每个测试方法中重复相同的代码
+
+类似 java单元测试中的 `@Before` 和 `@After`
+
 
 # 文档测试
 
+Python官方文档中的示例代码，比如 [re模块](https://docs.python.org/3/library/re.html) 就带了很多示例代码：
+
+```shell
+>>> import re
+>>> m = re.search('(?<=abc)def', 'abcdef')
+>>> m.group(0)
+'def'
+>>>
+```
+
+可以把这些示例代码在Python的交互式环境下输入并执行，结果与文档中的示例代码显示的一致。
+
+这些代码与其他说明可以写在注释中，然后，由一些工具来自动生成文档。
+
+既然这些代码本身就可以粘贴出来直接运行，也可以自动执行写在注释中的这些代码。
+
+当我们编写注释时，如果写上这样的注释
+
+```python
+
+def abs(n):
+    '''
+    Function to get absolute value of number.
+    
+    Example:
+    
+    >>> abs(1)
+    1
+    >>> abs(-1)
+    1
+    >>> abs(0)
+    0
+    '''
+    return n if n >= 0 else (-n)
+```
+
+可以明确地告诉函数的调用者该函数的期望输入和输出
+
+并且，Python内置的“文档测试”（`doctest`）模块可以直接提取注释中的代码并执行测试。
+
+doctest严格按照Python交互式命令行的输入和输出来判断测试结果是否正确。只有测试异常的时候，可以用...表示中间一大段烦人的输出。
+
+示例
+
+```python
+
+def fact(n):
+
+    '''
+    Calculate 1*2*...*n
+    
+    >>> fact(1)
+    1
+    >>> fact(10)
+    3628800
+    >>> fact(-1)
+    Traceback (most recent call last):
+        ...
+    ValueError
+
+    '''
+    if n < 1:
+        raise ValueError()
+    if n == 1:
+        return 1
+    return n * fact(n - 1)
+
+
+numList = list(range(1, 20))
+
+for i in numList:
+    print('%s的阶乘结果是%s' % (i  ,fact(i) ))
+
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()
+
+```
+
+doctest不仅可以用来测试，还可以直接作为示例代码，通过某些文档生成工具，可以自动把包含doctest的注释提取出来。
