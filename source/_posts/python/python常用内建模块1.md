@@ -1,0 +1,235 @@
+---
+title: python常用内建模块1
+categories: [技术]
+tags: [python]
+date: 2023-12-21 18:40:13
+---
+
+Python之所以自称“batteries included”，就是因为内置了许多非常有用的模块，无需额外安装和配置，即可直接使用。
+
+主要介绍了datetime和collections模块
+
+<!-- more -->
+
+# datetime
+
+datetime是Python处理日期和时间的标准库。
+
+**获取当前日期和时间**
+
+`datetime.now()`返回的是当前日期和时间。
+
+**获取指定日期和时间**
+
+要指定某个日期和时间，我们直接用参数构造一个`datetime`
+
+**datetime转换为timestamp**
+
+timestamp时间戳，timestamp的值与时区毫无关系，因为timestamp一旦确定，其UTC时间就确定了，注意时区的问题
+
+把一个`datetime`类型转换为`timestamp`只需要简单调用`timestamp()`方法：
+
+Python的timestamp是一个浮点数，整数位表示秒。
+
+**timestamp转换为datetime**
+
+要把`timestamp`转换为`datetime`，使用`datetime`提供的`fromtimestamp()`方法：
+
+`timestamp`是一个浮点数，它没有时区的概念，而`datetime`是有时区的。上述转换是在timestamp和本地时间做转换。本地时间是指当前操作系统设定的时区
+
+timestamp也可以直接被转换到UTC标准时区的时间，使用`utcfromtimestamp()`方法，后续该方法可能会被移除。
+
+
+**str转换为datetime**
+
+把日期和时间的字符串转换为`datetime`，通过`datetime.strptime()`实现，需要一个日期和时间的格式化字符串：
+
+格式化字符串参考文档 [strftime-strptime-behavior](https://docs.python.org/3/library/datetime.html#strftime-strptime-behavior)
+
+**datetime转换为str**
+
+使用`strftime()`函数实现，参数需要一个格式化的字符串，和转datetime的一样。
+
+`now.strftime('%Y-%m-%d %H:%M:%S')`
+
+```shell
+# 获取当前日期和时间
+>>> from datetime import datetime
+>>> now = datetime.now()
+>>> print(now)
+2023-12-26 11:36:58.026154
+>>> print(type(now))
+<class 'datetime.datetime'>
+# 获取指定日期和时间
+>>> dt = datetime(2023,12,26,11,22,44)
+>>> print(dt)
+2023-12-26 11:22:44
+# timestamp
+>>> print(dt.timestamp())
+1703560964.0
+>>>
+>>> print(now.timestamp())
+1703561818.026154
+>>>
+# 转datetime
+>>> t = 1601234654.1243
+>>> print(datetime.fromtimestamp(t))
+2020-09-28 03:24:14.124300
+>>> print(datetime.utcfromtimestamp(t))
+2020-09-27 19:24:14.124300
+>>>
+# 字符串转datetime
+>>> day  = datetime.strptime('2023-12-01 12:11:01', '%Y-%m-%d %H:%M:%S')
+>>> print(day)
+2023-12-01 12:11:01
+>>> print(type(day))
+<class 'datetime.datetime'>
+>>>
+# datetime转字符串
+>>> print(now.strftime( '%Y-%m-%d %H:%M:%S'))
+2023-12-26 11:36:58
+>>>
+# datetime 加减计算
+>>> print(now)
+2023-12-26 11:36:58.026154
+>>> nd = now + timedelta(days = 2)
+>>> print(nd)
+2023-12-28 11:36:58.026154
+>>>
+
+```
+
+**datetime加减**
+
+加减可以直接用`+`和`-`运算符，不过需要导入`timedelta`这个类
+
+**本地时间转换为UTC时间**
+
+一个`datetime`类型有一个时区属性`tzinfo`，但是默认为`None`，可以给`datetime`设置一个时区。
+
+> tz_utc_8 = timezone(timedelta(hours=8)) # 创建时区UTC+8:00
+
+**时区转换**
+可以先通过`utcnow()`拿到当前的UTC时间，再转换为任意时区的时间
+
+利用带时区的`datetime`，通过`astimezone()`方法，可以转换到任意时区
+
+```shell
+>>> from datetime import datetime, timedelta, timezone
+>>> utc_dt = datetime.utcnow().replace(tzinfo=timezone.utc)
+>>> print(utc_dt)
+2023-12-26 06:17:28.304592+00:00
+>>> bj_dt = utc_dt.astimezone(timezone(timedelta(hours=8)))
+>>> print(bj_dt)
+2023-12-26 14:17:28.304592+08:00
+>>> tokyo_dt=bj_dt.astimezone(timezone(timedelta(hours=9)))
+>>> print(tokyo_dt)
+2023-12-26 15:17:28.304592+09:00
+>>>
+```
+
+# collections集合模块
+
+**namedtuple**
+
+`tuple`可以表示不变集合，一个点的二维坐标就可以表示成 `p = (1, 2)`，但是看到 `(1, 2)` 很难看出是表示一个坐标的。定义一个calss又小题大做了，这时可以用`namedtuple`
+
+`namedtuple`是一个函数，它用来创建一个自定义的`tuple`对象，并且规定了`tuple`元素的个数，并可以用属性而不是索引来引用`tuple`的某个元素。
+
+我们用`namedtuple`可以很方便地定义一种数据类型，它具备`tuple`的不变性，又可以根据属性来引用，使用十分方便。
+
+可以验证创建的`Point`对象是`tuple`的一种子类
+
+```shell
+>>> from collections import namedtuple
+>>> Point = namedtuple('Point', ['x', 'y'])
+>>> p = Point(1,2)
+>>> p.x
+1
+>>> type(p)
+<class '__main__.Point'>
+>>>
+>>> isinstance(p, tuple)
+True
+>>>
+```
+
+**deque**
+
+使用`list`存储数据时，按照索引访问快，但是插入和删除慢，数据量大的时候，效率很低。
+
+`deque`是为了高效实现插入和删除操作的双向列表，适合用于队列和栈
+
+```shell
+>>> from collections import deque
+>>> q = deque(['1', '2', '3'])
+>>> q.append('4')
+>>> q.appendleft('5')
+>>> q
+deque(['5', '1', '2', '3', '4'])
+>>> q.pop()
+'4'
+>>> q.popleft()
+'5'
+>>> q
+deque(['1', '2', '3'])
+```
+`deque`除了实现`list`的`append()`和`pop()`外，还支持`appendleft()`和`popleft()`，这样就可以非常高效地往头部添加或删除元素。
+
+**defaultdict**
+
+使用`dict`时，如果引用的Key不存在，就会抛出`KeyError`。如果希望key不存在时，返回一个默认值，就可以用`defaultdict`
+
+```shell
+>>> from collections import defaultdict
+>>> d = defaultdict(lambda: 'N/A')
+>>> d['key1'] = '1'
+>>> d['key1']
+'1'
+>>> d['key2']
+'N/A'
+>>>
+```
+意默认值是调用函数返回的，而函数在创建`defaultdict`对象时传入。
+
+**OrderedDict**
+
+`dict`的key是无序的，如果需要保持key的顺序，使用`OrderedDict`
+
+`OrderedDict`是按照key插入的顺序排序，而不是key本身的顺序。
+
+`OrderedDict`可以实现一个FIFO（先进先出）的`dict`，当容量超出限制时，先删除最早添加的Key
+
+`OrderedDict`在Python 3.7及以后的版本中，已经不再是必要的，因为从Python 3.7开始，普通的`dict`对象也会保持元素的插入顺序。
+
+如果想要按照字母顺序排序，可以先对dict排序，然后存入`OrderedDict`
+
+```python
+from collections import OrderedDict
+# 创建一个普通的字典
+unsorted_dict = {'apple': 5, 'banana': 2, 'orange': 3, 'pear': 1}
+# 按照键的字母顺序对字典进行排序
+sorted_dict = OrderedDict(sorted(unsorted_dict.items()))
+
+```
+
+**ChainMap**
+
+`ChainMap`可以把一组`dict`串起来并组成一个逻辑上的`dict`。`ChainMap`本身也是一个`dict`，但是查找的时候，会按照顺序在内部的`dict`依次查找。
+
+什么时候使用ChainMap最合适？举个例子：应用程序往往都需要传入参数，参数可以通过命令行传入，可以通过环境变量传入，还可以有默认参数。我们可以用ChainMap实现参数的优先级查找，即先查命令行参数，如果没有传入，再查环境变量，如果没有，就使用默认参数。
+
+**Counter**
+
+`Counter`是一个简单的计数器，`Counter`实际上也是`dict`的一个子类
+
+```python
+>>> from collections import Counter
+>>> c = Counter()
+>>> c.update('hahahshashsahashqh2qhewhfwh')
+>>> c
+Counter({'h': 11, 'a': 5, 's': 4, 'q': 2, 'w': 2, '2': 1, 'e': 1, 'f': 1})
+>>>
+```
+
+
