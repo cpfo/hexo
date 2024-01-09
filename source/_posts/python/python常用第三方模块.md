@@ -1,0 +1,140 @@
+---
+title: python常用第三方模块
+categories: [技术]
+tags: [python]
+date: 2024-01-09 14:00:32
+---
+
+可以在[PyPI - the Python Package Index](https://pypi.org/) 上查找第三方模块，使用pip安装。主要介绍Pillow，requests，chardet，psutil等
+
+<!-- more -->
+
+# Pillow
+
+PIL：Python Imaging Library，是图像处理库，但是仅支持到2.7，兼容的版本，名字叫Pillow，支持最新Python 3.x，又加入了许多新特性。
+
+比如图片压缩和模糊
+
+```python
+
+from PIL import Image, ImageFilter
+
+img = Image.open('D:/oldimg.jpg')
+w = img.width
+h = img.height
+print(w, h)
+img.thumbnail((w//2, h//2))
+# 模糊滤镜
+img.filter(ImageFilter.BLUR)
+img.save('D:/newimg.jpg')
+
+```
+
+# requests
+
+requests 是一个第三方库，处理资源特别方便。
+
+**使用requests**
+
+requests自动检测编码，可以使用`encoding`属性查看
+
+无论响应是文本还是二进制内容，我们都可以用`content`属性获得`bytes`对象
+
+对于特定类型的响应，例如JSON，可以直接获取 'r.json()'
+
+需要传入HTTP Header时，我们传入一个dict作为`headers`参数
+
+requests默认使用`application/x-www-form-urlencoded`对POST数据编码。如果要传递JSON数据，可以直接传入json参数
+```python
+params = {'key': 'value'}
+r = requests.post(url, json=params) # 内部自动序列化为JSON
+```
+上传文件需要更复杂的编码格式，但是`requests`把它简化成`files`参数
+
+```shell
+>>> upload_files = {'file': open('report.xls', 'rb')}
+>>> r = requests.post(url, files=upload_files)
+```
+在读取文件时，注意务必使用`'rb'`即二进制模式读取，这样获取的`bytes`长度才是文件的长度。
+
+requests对Cookie做了特殊处理，使得我们不必解析Cookie就可以轻松获取指定的Cookie：
+
+要指定超时，传入以秒为单位的`timeout`参数
+
+```shell
+r = requests.get(url, timeout=2.5) # 2.5秒后超时
+```
+示例代码
+
+```python
+import requests
+
+reqHeader = {'User-Agent':'chrome'}
+
+r = requests.get('https://www.baidu.com/')
+print(r.status_code)
+headers = r.headers
+for k, v in headers.items():
+    print(k, '=', v)
+
+print(r.headers['Date'])
+# cookie
+# 打印所有的Cookie值
+cookies = r.cookies
+print('输出cookie信息')
+for cookie in cookies:
+    print(cookie.name, ':', cookie.value)
+
+print(r.encoding)
+# print(r.json())
+```
+
+# chardet
+
+虽然Python提供了Unicode表示的`str`和`bytes`两种数据类型，并且可以通过`encode()`和`decode()`方法转换，但是，在不知道编码的情况下，对`bytes`做`decode()`不好做。
+
+对于未知编码的`bytes`，要把它转换成`str`，需要先“猜测”编码。猜测的方式是先收集各种编码的特征字符，根据特征字符判断，就能有很大概率“猜对”。
+
+chardet 用来检测编码。
+
+```shell
+>>> import chardet
+>>> chardet.detect(b'12ass')
+{'encoding': 'ascii', 'confidence': 1.0, 'language': ''}
+>>> chardet.detect('中国'.encode())
+{'encoding': 'utf-8', 'confidence': 0.7525, 'language': ''}
+>>> chardet.detect('中国'.encode('GB2312'))
+{'encoding': 'IBM855', 'confidence': 0.7679697235616183, 'language': 'Russian'}
+>>> chardet.detect('中国'.encode('GBK'))
+{'encoding': 'IBM855', 'confidence': 0.7679697235616183, 'language': 'Russian'}
+>>> chardet.detect('中国'.encode('utf-8'))
+{'encoding': 'utf-8', 'confidence': 0.7525, 'language': ''}
+>>>
+>>>
+>>> chardet.detect('こんにちは'.encode('utf-8'))
+{'encoding': 'utf-8', 'confidence': 0.99, 'language': ''}
+>>> chardet.detect('こんにちは'.encode('EUC-JP'))
+{'encoding': 'EUC-JP', 'confidence': 0.99, 'language': 'Japanese'}
+>>>
+>>>
+```
+`confidence` 字段， 表示检测的概率， 最高是1.0
+
+
+# psutil
+
+用Python来编写脚本简化日常的运维工作是Python的一个重要用途。psutil = process and system utilities，它不仅可以通过一两行代码实现系统监控，还可以跨平台使用。
+
+获取cpu信息
+
+```shell
+>>> import psutil
+>>> psutil.cpu_count() # CPU逻辑数量
+8
+>>> psutil.cpu_count(logical=False) # CPU物理核心
+4
+# "4核8线程"是指一个处理器（CPU）具有4个物理核心和8个线程。
+```
+
+其他的方法可以查看文档。 [psutil](https://pypi.org/project/psutil/)  
+
