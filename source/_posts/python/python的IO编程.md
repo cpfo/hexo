@@ -361,7 +361,7 @@ print(json.dumps(s))
 
 `dumps()`函数有很多可选参数，可以用来定制json序列化。
 
-选参数`default`就是把任意一个对象变成一个可序列为JSON的对象，我们只需要为`Student`专门写一个转换函数，再把函数传进去即可
+可选参数`default`就是把任意一个对象变成一个可序列为JSON的对象，我们只需要为`Student`专门写一个转换函数，再把函数传进去即可
 
 ```python
 def student2dict(std):

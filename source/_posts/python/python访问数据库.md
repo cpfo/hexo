@@ -5,8 +5,219 @@ tags: [python]
 date: 2024-01-09 15:57:02
 ---
 
-
-
-
+主要介绍数据库的相关操作和SQLAlchemy框架
 
 <!-- more -->
+
+# 使用SQLite
+
+Python就内置了SQLite3的驱动，可以直接使用
+
+要操作关系数据库，首先需要连接到数据库，一个数据库连接称为`Connection`；
+
+连接到数据库后，需要打开游标，称之为`Cursor`，通过`Cursor`执行SQL语句，然后，获得执行结果。
+
+```shell
+>>> import sqlite3
+>>> conn = sqlite3.connect('python.db')
+>>>
+>>> cursor = conn.cursor()
+>>> cursor.execute('create table user (id int primary key, name varchar(20))')
+<sqlite3.Cursor object at 0x0000027FCA51F740>
+>>>
+>>> cursor.execute('insert into user values  (1, "张三")')
+<sqlite3.Cursor object at 0x0000027FCA51F740>
+>>>
+>>> cursor.rowcount
+1
+>>> cursor.execute('select * from user where name = "张三"')
+<sqlite3.Cursor object at 0x0000027FCA51F740>
+>>> value = cursor.fetchall()
+>>> value
+[(1, '张三')]
+>>>
+```
+
+使用`Cursor`对象执行`insert`，`update`，`delete`语句时，执行结果由`rowcount`返回影响的行数，就可以拿到执行结果。
+
+使用`Cursor`对象执行`select`语句时，通过`fetchall()`可以拿到结果集。结果集是一个`list`，每个元素都是一个`tuple`，对应一行记录。
+
+如果SQL语句带有参数，那么需要把参数按照位置传递给`execute()`方法，有几个`?`占位符就必须对应几个参数
+
+```shell
+>>> cursor.execute('select * from user where id = ? or name = ?', (1, '李四'))
+<sqlite3.Cursor object at 0x0000027FCA51F6C0>
+>>> value = cursor.fetchall()
+>>> value
+[(1, '张三'), (2, '李四')]
+>>>
+```
+
+要确保打开的`Connection`对象和`Cursor`对象都正确地被关闭，否则，资源就会泄露。
+
+# 使用MySql
+
+需要安装驱动
+
+```shell
+pip install mysql-connector
+```
+
+相关操作
+
+```python
+import mysql.connector
+import json
+
+conn = mysql.connector.connect(host='localhost', user='root', password='root',database='test')
+
+cursor = conn.cursor()
+cursor.execute('create table t_user(id int not null AUTO_INCREMENT primary key, name varchar(20))')
+# 入库
+cursor.execute('insert into t_user values (%s, %s)', (1, '张三'))
+cursor.execute('insert into t_user values (%s, %s)', (2, '李四'))
+print('执行结果', cursor.rowcount)
+
+conn.commit()
+cursor.close()
+
+# 执行查询
+cursor = conn.cursor()
+cursor.execute('select * from t_user where name = %s', ('张三', ))
+values = cursor.fetchall()
+
+print(values)
+print(json.dumps(values, ensure_ascii=False))
+
+
+```
+
+
+执行INSERT等操作后要调用`commit()`提交事务
+
+MySQL的SQL占位符是`%s`
+
+# 使用SQLAlchemy
+
+数据库表是一个二维表，包含多行多列。把一个表的内容用Python的数据结构表示出来的话，可以用一个list表示多行，list的每一个元素是tuple，表示一行记录，比如下面的记录
+
+```shell
+[
+  (1, '张三'), 
+  (2, '李四')
+]
+```
+Python的DB-API返回的数据结构就是像上面这样表示的
+
+但是用tuple表示一行很难看出表的结构。如果把一个tuple用class实例来表示，就可以更容易地看出表的结构来，可以使用ORM框架进行转换，最有名的ORM框架是SQLAlchemy。
+
+先安装 ` pip install sqlalchemy`
+
+然后，利用上次我们在MySQL的test数据库中创建的`t_user`表，用SQLAlchemy来试试
+
+第一步，导入SQLAlchemy，并初始化DBSession
+
+```python
+from sqlalchemy import Column, INT, String, create_engine
+import sqlalchemy
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
+
+# 创建对象的基类:
+Base = sqlalchemy.orm.declarative_base()
+
+# 定义user对象
+
+class User(Base):
+    # 表的名字:
+    __tablename__ = 't_user'
+
+    # 表的结构:
+    id = Column(INT, primary_key=True)
+    name = Column(String(20))
+
+
+# 初始化数据库连接:
+engine = create_engine('mysql+mysqlconnector://root:root@localhost:3306/test')
+# 创建DBSession类型:
+DBSession = sessionmaker(bind=engine)
+print(DBSession)
+```
+
+以上代码完成SQLAlchemy的初始化和具体每个表的class定义。如果有多个表，就继续定义其他class
+
+`create_engine()`用来初始化数据库连接。SQLAlchemy用一个字符串表示连接信息
+
+```
+'数据库类型+数据库驱动名称://用户名:口令@机器地址:端口号/数据库名'
+```
+
+由于有了ORM，我们向数据库表中添加一行记录，可以视为添加一个`User`对象
+
+```python
+#创建session对象
+session = DBSession()
+# 创建新User对象
+user1 = User(name='Jim')
+# 添加到session
+session.add(user1)
+# 提交即保存到数据库
+session.commit()
+# 关闭session
+session.close()
+
+```
+
+关键是获取`session`，然后把对象添加到`session`，最后提交并关闭。`DBSession`对象可视为当前数据库连接
+
+查询操作，查询出来的可以不再是`tuple`，而是`User`对象。SQLAlchemy提供的查询接口如下
+
+```python
+session = DBSession()
+# 创建Query查询，filter是where条件，最后调用one()返回唯一行，如果调用all()则返回所有行
+user2 = session.query(User).filter(User.id == 2).one()
+print('type:', type(user2))
+print('name:', user2.name)
+# 查询多条
+user_list = session.query(User).filter(User.id > 0).all()
+print(user_list)
+```
+
+ORM就是把数据库表的行与相应的对象建立关联，互相转换。
+
+## 查询结果JSON序列化
+
+直接进行JSON序列化会报错
+
+```shell
+TypeError: Object of type User is not JSON serializable
+```
+
+使用 `default=lambda obj: obj.dict` 一样报错
+
+```shell
+print(json.dumps(user2, default=lambda obj: obj.dict, ensure_ascii=False))
+
+AttributeError: 'User' object has no attribute 'dict'
+```
+
+正确的方式
+
+
+使用 SQLAlchemy 对象进行 JSON 序列化时，可以使用 SQLAlchemy 提供的 `sqlalchemy.ext.declarative.as_declarative()` 装饰器和 `sqlalchemy.ext.declarative.declared_attr()` 装饰器来定义自定义的序列化方法。
+
+```python
+@as_declarative()
+class Base:
+    @declared_attr
+    def __tablename__(cls):
+        return cls.__name__.lower()
+
+    def to_dict(self):
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
+
+# 序列化时改用 
+print(json.dumps(user2.to_dict(), ensure_ascii=False))
+```
+
