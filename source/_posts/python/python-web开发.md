@@ -5,8 +5,295 @@ tags: [python]
 date: 2024-01-09 15:57:32
 ---
 
-
-
-
+C/S架构，B/S架构，web开发主要指B/S架构。
 
 <!-- more -->
+
+# HTTP协议
+
+每个HTTP请求和响应都遵循相同的格式，一个HTTP包含Header和Body两部分，其中Body是可选的。
+
+HTTP协议是一种文本协议，所以，它的格式也非常简单。HTTP GET请求的格式：
+
+```shell
+GET /path HTTP/1.1
+Header1: Value1
+Header2: Value2
+Header3: Value3
+```
+每个Header一行一个，换行符是`\r\n`
+
+HTTP POST请求的格式
+
+```shell
+POST /path HTTP/1.1
+Header1: Value1
+Header2: Value2
+Header3: Value3
+
+body data goes here...
+```
+当遇到连续两个`\r\n`时，Header部分结束，后面的数据全部是Body
+
+HTTP响应的格式
+
+```shell
+200 OK
+Header1: Value1
+Header2: Value2
+Header3: Value3
+
+body data goes here...
+```
+
+HTTP响应如果包含body，也是通过`\r\n\r\n`来分隔的。Body的数据类型由`Content-Type`头来确定，如果是网页，Body就是文本，如果是图片，Body就是图片的二进制数据
+
+看到`Content-Encoding: gzip`时，需要将Body数据先解压缩，才能得到真正的数据。压缩的目的在于减少Body的大小，加快网络传输。
+
+
+# WSGI接口
+
+
+WSGI：Web Server Gateway Interface, 用于处理http内容的响应。
+
+WSGI接口定义非常简单，它只要求Web开发者实现一个函数，就可以响应HTTP请求
+
+```python
+def application(environ, start_response):
+    start_response('200 OK', [('Content-Type', 'text/html')])
+    return [b'<h1>Hello, web!</h1>']
+```
+
+上面的`application()`函数就是符合WSGI标准的一个HTTP处理函数，它接收两个参数
+
+* environ：一个包含所有HTTP请求信息的`dict`对象
+* start_response：一个发送HTTP响应的函数
+
+在`application()`函数中，调用
+
+```python
+start_response('200 OK', [('Content-Type', 'text/html')])
+```
+就发送了HTTP响应的Header，注意Header只能发送一次，也就是只能调用一次`start_response()`函数。`start_response()`函数接收两个参数，一个是HTTP响应码，一个是一组`list`表示的HTTP Header，每个Header用一个包含两个`str`的`tuple`表示。
+
+通常情况下，都应该把`Content-Type`头发送给浏览器。其他很多常用的HTTP Header也应该发送。
+
+然后，函数的返回值`b'<h1>Hello, web!</h1>'`将作为HTTP响应的Body发送给浏览器。
+
+有了WSGI，我们关心的就是如何从`environ`这个`dict`对象拿到HTTP请求信息，然后构造HTML，通过`start_response()`发送Header，最后返回Body。
+
+整个`application()`函数本身没有涉及到任何解析HTTP的部分，也就是说，底层代码不需要我们自己编写，我们只负责在更高层次上考虑如何响应请求就可以了。
+
+`application()`函数必须由WSGI服务器来调用。可以选择符合WSGI规范的服务器。
+
+Python内置了一个WSGI服务器，这个模块叫`wsgiref`，它是用纯Python编写的WSGI服务器的参考实现，仅用于开发和测试使用。
+
+## 运行WSGI服务
+
+先编写 `hello.py`, 实现Web应用程序的WSGI处理函数
+
+```python
+# hello.py
+
+def application(environ, start_response):
+    start_response('200 OK', [('Content-Type', 'text/html')])
+    return [b'<h1>Hello, web!</h1>']
+```
+
+再编写一个`server.py`，负责启动WSGI服务器，加载`application()`函数：
+
+```python
+# server.py
+# 从wsgiref模块导入:
+from wsgiref.simple_server import make_server
+# 导入我们自己编写的application函数:
+from hello import application
+
+# 创建一个服务器，IP地址为空，端口是8000，处理函数是application:
+httpd = make_server('', 8000, application)
+print('Serving HTTP on port 8000...')
+# 开始监听HTTP请求:
+httpd.serve_forever()
+```
+
+无论多么复杂的Web应用程序，入口都是一个WSGI处理函数。HTTP请求的所有输入信息都可以通过`environ`获得，HTTP响应的输出都可以通过`start_response()`加上函数返回值作为Body。
+
+# 使用Web框架
+
+一个Web App，就是写一个WSGI的处理函数，针对每个HTTP请求进行响应。但是如果url数量过多，代码就很复杂了，所以可以使用web框架。比如轻量级的Flask和功能强大的Django
+
+下面用Flask进行演示。
+
+编写一个`app.py` 处理3个url
+
+1. `GET /`， 首页
+2. `GET /signin`，登录页面，返回登录表单
+3. `POST /login`， 处理登录请求
+
+Flask通过Python的装饰器在内部自动地把URL和函数给关联起来
+
+```python
+from flask import Flask
+from flask import request
+
+app = Flask(__name__)
+
+@app.route('/', methods=['GET', 'POST'])
+def home():
+    return '<h1>Hello</H1>'
+
+@app.route('/signin', methods=['GET'])
+def signin_form():
+    return '''<form action="/login" method="post">
+            <p><input name="username"></p>
+            <p><input name="password" type="password"></p>
+            <p><button type="submit">Sign In</button></p>
+            </form>'''
+
+
+@app.route('/login', methods=['POST'])
+def login():
+    # 需要从request对象读取表单内容：
+    if request.form['username'] == 'admin' and request.form['password'] == 'admin':
+        return '<h2>login success</h2>'
+    
+    return '<h2>用户名或密码错误</h2>'
+if __name__ == '__main__':
+    app.run()
+```
+
+在编写URL处理函数时，除了配置URL外，从HTTP请求拿到用户数据也是非常重要的。Web框架都提供了自己的API来实现这些功能。Flask通过`request.form['name']`来获取表单的内容。
+
+# 使用模板
+
+Web框架把我们从WSGI中拯救出来了。现在，我们只需要不断地编写函数，带上URL，就可以继续Web App的开发了。
+
+Web App不仅仅是处理逻辑，展示给用户的页面也非常重要。在Python代码里拼字符串是不现实的，所以，模板技术出现了。
+
+使用模板，我们需要预先准备一个HTML文档，这个HTML文档不是普通的HTML，而是嵌入了一些变量和指令，然后，根据我们传入的数据，替换后，得到最终的HTML，发送给用户
+
+变量名比如 `{{name}}`
+
+这就是传说中的MVC：Model-View-Controller，中文名“模型-视图-控制器”。
+
+Python处理URL的函数就是C：Controller，Controller负责业务逻辑，比如检查用户名是否存在，取出用户信息等等；
+
+包含变量`{{ name }}`的模板就是V：View，View负责显示逻辑，通过简单地替换一些变量，View最终输出的就是用户看到的HTML。
+
+MVC中的Model在哪？Model是用来传给View的，这样View在替换变量的时候，就可以从Model中取出相应的数据。
+
+Model可以是一个 `dict`
+
+因为Python支持关键字参数，很多Web框架允许传入关键字参数，然后，在框架内部组装出一个`dict`作为Model。
+
+Flask通过`render_template()`函数来实现模板的渲染。和Web框架类似，Python的模板也有很多种。Flask默认支持的模板是`jinja2`，所以我们先直接安装`jinja2`：
+
+可以把上面输出html字符串的改为使用模板
+
+```python
+from flask import Flask
+from flask import request, render_template
+
+app = Flask(__name__)
+
+@app.route('/', methods=['GET', 'POST'])
+def home():
+    return render_template('home.html')
+
+# 登录页面
+@app.route('/signin', methods=['GET'])
+def signin():
+    return render_template('form.html')
+
+
+@app.route('/login', methods=['POST'])
+def login():
+    name = request.form['username']
+    pwd = request.form['password']
+
+    if name == 'admin' and pwd == 'password':
+        return render_template('success.html', username = name)
+    return render_template('form.html', message = '用户名或密码错误', username = name)
+
+
+if __name__ == '__main__':
+    app.run()
+```
+
+**首页**  `home.html`
+
+```html
+<html>
+    <head>
+        <title>首页</title>
+    </head>
+    <body>
+        <h1>这是首页</h1>
+
+    </body>
+</html>
+```
+
+**表单页** `form.html`
+
+```html
+<html>
+
+<head>
+    <title>登录页面</title>
+</head>
+
+<body>
+    <body>
+        {% if message %}
+        <p style="color:red">{{ message }}</p>
+        {% endif %}
+        <form action="/login" method="post">
+            <legend>请登录:</legend>
+            <p><input name="username" placeholder="用户名" value="{{ username }}"></p>
+            <p><input name="password" placeholder="密码" type="password"></p>
+            <p><button type="submit">登录</button></p>
+        </form>
+    </body>
+</body>
+
+</html>
+```
+
+**成功页** `success.html`
+
+```html
+<html>
+<head>
+    <title>Welcome, {{ username }}</title>
+</head>
+<body>
+<p>Welcome, {{ username }}!</p>
+
+{% for i in range(pageSize) %}
+<a href="/page/{{ i }}">第{{ i + 1 }}页</a>
+{% endfor %}
+
+<br/>
+
+共 {{pageSize}} 页
+
+</body>
+
+</html>
+```
+
+在`form.html`中加了一点条件判断，把`form.html`重用为登录失败的模板
+
+一定要把模板放到正确的`templates`目录下，`templates`和`app.py`在同级目录下
+
+通过MVC，我们在Python代码中处理M：Model和C：Controller，而V：View是通过模板处理的，这样，我们就成功地把Python代码和HTML代码最大限度地分离了。
+
+使用模板的另一大好处是，模板改起来很方便，而且，改完保存后，刷新浏览器就能看到最新的效果。
+
+在Jinja2模板中，我们用`{{ name }}`表示一个需要替换的变量。很多时候，还需要循环、条件判断等指令语句，在Jinja2中，用`{% ... %}`表示指令
+
+有了MVC，我们就分离了Python代码和HTML代码。HTML代码全部放到模板里，写起来更有效率。
+
+
+
