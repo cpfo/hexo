@@ -5,8 +5,218 @@ tags: [python]
 date: 2024-01-09 15:58:13
 ---
 
+CPU的处理速度和IO的读写速度远远不匹配，会出现阻塞等待的情况，所以引入了多线程或者多进程来提升并行效率，但是线程数量也不能无限增加，否则将会耗费大量的时间在线程切换上。
 
-
-
+除了多线程和多进程之外，另一种解决IO问题的方法是异步IO。
 
 <!-- more -->
+
+当代码需要执行一个耗时的IO操作时，它只发出IO指令，并不等待IO结果，然后就去执行其他代码了。一段时间后，当IO返回结果时，再通知CPU进行处理。
+
+同步IO模型的代码是无法实现异步IO模型的。异步IO模型需要一个消息循环，在消息循环中，主线程不断地重复“读取消息-处理消息”这一过程：
+
+```
+loop = get_event_loop()
+while True:
+    event = loop.get_event()
+    process_event(event)
+```
+同步IO下，主线程只能挂起等待，异步IO的情况下，主线程可以去处理其他事情，大大提升了IO密集型程序下系统的多任务处理能力。
+
+```
+# 真正意义上的 异步IO 是说内核直接将数据拷贝至用户态的内存单元，再通知程序直接去读取数据。
+# select / poll / epoll 都是同步IO的多路复用模式
+
+# 1.同步和异步
+# 同步和异步关注的是消息通信机制
+# 所谓同步，就是在发出一个*调用*时，没得到结果之前，该*调用*就不返回。但是一旦调用返回就得到返回值了，*调用者*主动等待这个*调用*的结果
+# 所谓异步，就是在发出一个*调用*时，这个*调用*就直接返回了，不管返回有没有结果。当一个异步过程调用发出后，*被调用者*通过状态，通知来通知*调用者*，或者通过回调函数处理这个调用
+
+# 2.阻塞和非阻塞
+# 阻塞和非阻塞关注的是程序在等待调用结果时的状态
+# 阻塞调用是指调用结果返回之前，当前线程会被挂起。调用线程只有在得到结果之后才返回
+# 非阻塞调用是指在不能立即得到结果之前，该调用不会阻塞当前线程
+
+# 网络上的例子
+#老张爱喝茶，废话不说，煮开水。
+#出场人物：老张，水壶两把（普通水壶，简称水壶；会响的水壶，简称响水壶）。
+#1 老张把水壶放到火上，立等水开。（同步阻塞）；立等就是阻塞了老张去干别的事，老张得一直主动的看着水开没，这就是同步
+#2 老张把水壶放到火上，去客厅看电视，时不时去厨房看看水开没有。（同步非阻塞）；老张去看电视了，这就是非阻塞了，但是老张还是得关注着水开没，这也就是同步了
+#3 老张把响水壶放到火上，立等水开。（异步阻塞）；立等就是阻塞了老张去干别的事，但是老张不用时刻关注水开没，因为水开了，响水壶会提醒他，这就是异步了
+#4 老张把响水壶放到火上，去客厅看电视，水壶响之前不再去看它了，响了再去拿壶。（异步非阻塞）；老张去看电视了，这就是非阻塞了，而且，等水开了，响水壶会提醒他，这就是异步了
+#所谓同步异步，只是对于水壶而言。普通水壶，同步；响水壶，异步。对应的也就是消息通信机制
+#虽然都能干活，但响水壶可以在自己完工之后，提示老张水开了。这是普通水壶所不能及的。同步只能让调用者去轮询自己（情况2中），造成老张效率的低下。
+#所谓阻塞非阻塞，仅仅对于老张而言。立等的老张，阻塞；对应的也就是程序等待结果时的状态
+#看电视的老张，非阻塞。
+#情况1和情况3中老张就是阻塞的，媳妇喊他都不知道。虽然3中响水壶是异步的，可对于立等的老张没有太大的意义。所以一般异步是配合非阻塞使用的，这样才能发挥异步的效用。
+```
+
+
+# 协程
+
+协程，又称微线程，纤程。英文名Coroutine。
+
+子程序，或者称为函数，在所有语言中都是层级调用，比如A调用B，B在执行过程中又调用了C，C执行完毕返回，B执行完毕返回，最后是A执行完毕。
+
+子程序调用是通过栈实现的，一个线程就是执行一个子程序。子程序调用总是一个入口，一次返回，调用顺序是明确的。而协程的调用和子程序不同。
+
+协程看上去也是子程序，但执行过程中，在子程序内部可中断，然后转而执行别的子程序，在适当的时候再返回来接着执行。
+
+比如例子
+
+```python
+def A():
+    print('1')
+    print('2')
+    print('3')
+
+def B():
+    print('x')
+    print('y')
+    print('z')
+```
+
+假设由协程执行，在执行A的过程中，可以随时中断，去执行B，B也可能在执行过程中中断再去执行A，结果可能是
+
+```shell
+1
+2
+x
+y
+3
+z
+```
+
+看起来A、B的执行有点像多线程，但协程的特点在于是一个线程执行，那和多线程比，协程有何优势？
+
+最大的优势就是协程极高的执行效率。因为子程序切换不是线程切换，而是由程序自身控制，因此，没有线程切换的开销，和多线程比，线程数量越多，协程的性能优势就越明显。
+
+第二大优势就是不需要多线程的锁机制，因为只有一个线程，也不存在同时写变量冲突，在协程中控制共享资源不加锁，只需要判断状态就好了，所以执行效率比多线程高很多。
+
+因为协程是一个线程执行，那怎么利用多核CPU呢？最简单的方法是多进程+协程，既充分利用多核，又充分发挥协程的高效率，可获得极高的性能。
+
+Python对协程的支持是通过generator实现的。
+
+在generator中，我们不但可以通过`for`循环来迭代，还可以不断调用`next()`函数获取由`yield`语句返回的下一个值。
+
+但是Python的`yield`不但可以返回一个值，它还可以接收调用者发出的参数。
+
+```python
+def consumer():
+    r = ''
+    while True:
+        n = yield r
+        if not n:
+            return
+        print('[consumer] 消费消息 %s ...' % n)
+        r = '200 OK'
+
+
+def producer(c):
+    c.send(None)
+    n = 0
+    while n < 5:
+        n = n+1
+        print('[producer] 生产消息 %s ...' % n)
+        r = c.send(n)
+        print('[producer] 消费者返回的结果为 %s ...' % r)
+
+    c.close()
+
+c  = consumer()
+producer(c)
+```
+`consumer`函数是一个`generator`，把一个`consumer`传入producer后：
+
+`n = yield r` 的理解: 
+
+* `yield r` 是将 `r` 返回给外部调用程序，交出控制权，暂停
+* `n = yield` 可以接收外部程序通过`send()`发送的信息，并赋值给 `n`。 赋值语句在下一次启动生成器的时候首先被执行
+
+
+上面例子的执行过程
+
+1. 首先调用`c.send(None)`启动生成器。功能类似于`next(c)`
+2. 然后，一旦生产了东西，通过c.send(n)切换到consumer执行
+3. `consumer`通过`yield`拿到消息，处理，又通过`yield`把结果传回
+4. `produce`拿到`consumer`处理的结果，继续生产下一条消息
+5. `produce`决定不生产了，通过`c.close()`关闭`consumer`，整个过程结束
+
+整个流程无锁，由一个线程执行，`produce`和`consumer`协作完成任务，所以称为“协程”，而非线程的抢占式多任务。
+
+“子程序就是协程的一种特例。”
+
+# asyncio async/await
+
+`asyncio`的编程模型就是一个消息循环。我们从`asyncio`模块中直接获取一个`EventLoop`的引用，然后把需要执行的协程扔到`EventLoop`中执行，就实现了异步IO。
+
+旧版本的使用方式
+
+```python
+import asyncio
+
+async def main():
+    print('Hello')
+    await asyncio.sleep(1)
+    print('World')
+
+# 获取Event loop:
+loop = asyncio.get_event_loop()
+# 执行coroutine
+loop.run_until_complete(main())
+loop.close()
+```
+
+在 Python 3.7+ 后，我们常常使用 `asyncio.run(coroutine)` 来代替以上获取` eventloop`、运行和关闭的操作，因为 `asyncio.run` 内部已经进行了封装。上述代码可以简化为：
+
+```python
+async def hello():
+    print("Hello world! %s " % threading.current_thread().name)
+    # 异步调用asyncio.sleep(1):
+    await asyncio.sleep(1)
+    print("Hello again!  %s " % threading.current_thread().name)
+
+asyncio.run(hello())
+
+```
+
+所以在实际编程中，我们很少直接操作 `Eventloop`，更多的是使用 `asyncio` 提供的更高层的 API （如 `asyncio.run()`, `asyncio.create_task()`, `asyncio.sleep()` 等）。Eventloop 更多的是被用在开发更底层的库或者理解 asyncio 原理上。
+
+我们用asyncio的异步网络连接来获取多个网站的首页
+
+```python
+import asyncio
+
+async def wget(host):
+    print('wget %s...' % host)
+    connect = asyncio.open_connection(host, 80)
+    reader, writer = await connect
+    header = 'GET / HTTP/1.0\r\nHost: %s\r\n\r\n' % host
+    writer.write(header.encode('utf-8'))
+    await writer.drain()
+    while True:
+        line = await reader.readline()
+        if line == b'\r\n':
+            break
+        print('%s header > %s' % (host, line.decode('utf-8').rstrip()))
+    # Ignore the body, close the socket
+    writer.close()
+
+async def multiTasks():
+    tasks = [wget(host) for host in ['www.sina.com.cn', 'www.sohu.com', 'www.163.com']]
+    results = await asyncio.gather(*tasks)
+
+
+asyncio.run(multiTasks())
+```
+
+# aiohttp
+
+`asyncio`可以实现单线程并发IO操作。如果仅用在客户端，发挥的威力不大。如果把`asyncio`用在服务器端，例如Web服务器，由于HTTP连接就是IO操作，因此可以用单线程+协程实现多用户的高并发支持。
+
+`asyncio`实现了TCP、UDP、SSL等协议，`aiohttp`则是基于`asyncio`实现的HTTP框架。
+
+
+
+
+
