@@ -47,3 +47,13 @@ $ hexo deploy
 ```
 
 More info: [Deployment](https://hexo.io/docs/deployment.html)
+
+### 使用图片
+
+可以将图片放到 source/images 目录下面即可，然后在文章中使用markdown语法访问他们, 参考 [资源文件夹](https://fuhailin.github.io/Hexo-images/)
+
+>  `![](/images/image.jpg)`
+
+效果如下:
+
+![](/images/assets/40703300-d32f-11ea-938e-f5ee97dc461f.jpg)
