@@ -15,9 +15,10 @@ Welcome to [Hexo](https://hexo.io/)! This is your very first post. Check [docume
 ``` bash
 $ hexo new "My New Post"
 
- hexo new post -p folder/文章名1
+ hexo new post -p folder/fileanme "titlename"
  
- // 就是在posts 下的 folder目录中创建了文章名1对应的文章。
+ 比如 >hexo new post -p tools/testfile "测试文章"
+  // 就是在posts 下的 tools目录中创建了文件 testfile.md，文件中对应的title是 测试文章
 
 ```
 
