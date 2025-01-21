@@ -479,6 +479,7 @@ mapping是对索引库中文档的约束，常见的mapping属性包括：
 + analyzer：使用哪种分词器
 
 + properties：该字段的子字段
++ fields: 给field 创建多字段，用于不同目的(全文检索或者聚合分析排序)， 参考 [es的mapping参数-fields](https://www.cnblogs.com/hld123/p/16538466.html) , [mapping-params](https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-params.html) 
 
 例如下面的json文档
 
