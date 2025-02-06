@@ -839,7 +839,7 @@ GET /hotel/_search
       "terms": { // 聚合的类型，按照品牌值聚合，所以选择term
         "field": "brand", // 参与聚合的字段
         "order": {
-          "doc_count": "asc" // 对聚合结果按照doc_count升序排列
+          "_count": "asc" // 对聚合结果按照doc_count升序排列
         },
         "size": 20 // 希望获取的聚合结果数量【设置多少就最多只显示多少】
       }

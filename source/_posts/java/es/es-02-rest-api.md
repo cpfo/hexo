@@ -512,9 +512,366 @@ public void testUpdateDocumentById() throws IOException {
 
 ```
 
+# API查询文档
+
+文档的查询同样适用 RestHighLevelClient对象，基本步骤包括：
+
++   1）准备Request对象
++   2）准备请求参数
++   3）发起请求
++   4）解析响应
+
+## 快速入门
+
+查询的基本步骤是：
+
+> 查询的基本步骤是：
+>
+> 1.  创建SearchRequest对象
+> 2.  准备Request.source()，也就是DSL。
+> 
+>     ① QueryBuilders来构建查询条件
+> 
+>     ② 传入Request.source() 的 query() 方法
+> 
+> 3.  发送请求，得到结果
+>
+> 4.  解析结果（参考JSON结果，从外到内，逐层解析）
+>
+
+### 发送查询请求
+
+![image](/images/java/es/2729274-20230205173800773-301602834.png)
+
+代码解读：
+
++ 第一步，创建`SearchRequest`对象，指定索引库名
+
++ 第二步，利用`request.source()`构建DSL，DSL中可以包含查询、分页、排序、高亮等
+    + `query()`：代表查询条件，利用`QueryBuilders.matchAllQuery()`构建一个match_all查询的DSL
++ 第三步，利用client.search()发送请求，得到响应
 
 
+这里关键的API有两个，一个是`request.source()`，其中包含了查询、排序、分页、高亮等所有功能：
 
+另一个是`QueryBuilders`，其中包含match、term、function_score、bool等各种查询：
+
+### 解析响应结果
+
+
+响应结果的解析：
+
+![image](/images/java/es/2729274-20230205173819239-1577366921.png)
+
+
+elasticsearch返回的结果是一个JSON字符串，结构包含：
+
++   `hits`：命中的结果
+    +   `total`：总条数，其中的value是具体的总条数值
+    +   `max_score`：所有结果中得分最高的文档的相关性算分
+    +   `hits`：搜索结果的文档数组，其中的每个文档都是一个json对象
+        +   `_source`：文档中的原始数据，也是json对象
+
+因此，我们解析响应结果，就是逐层解析JSON字符串，流程如下：
+
++   `SearchHits`：通过response.getHits()获取，就是JSON中的最外层的hits，代表命中的结果
+    +   `SearchHits#getTotalHits().value`：获取总条数信息
+    +   `SearchHits#getHits()`：获取SearchHit数组，也就是文档数组
+        +   `SearchHit#getSourceAsString()`：获取文档结果中的_source，也就是原始的json文档数据
+
+
+## 设置查询条件
+
+### 全文检索查询
+
+
+全文检索的match和multi_match查询与match_all的API基本一致。差别是查询条件，也就是query的部分。
+
+```shell
+
+# 全量查询
+GET /testcrud/_search
+{
+  "query": {
+    "match_all": {
+    }
+  }
+}
+
+# match 查询 keyword
+GET /testcrud/_search
+{
+  "query": {
+    "match": {
+      "city": "上海市"
+    }
+  }
+}
+
+# multi_match 查询
+GET /testcrud/_search
+{
+  "query": {
+    "multi_match": {
+      "query": "上海市",
+      "fields": ["address", " city"]
+    }
+  }
+}
+
+```
+
+因此，Java代码上的差异主要是 `request.source().query()` 中的参数了。同样是利用QueryBuilders提供的方法：
+
+```java
+SearchRequest request = new SearchRequest("kibana_sample_data_flights");
+// 单字段查询
+request.source().query(QueryBuilders.matchQuery("OriginWeather", "Sunny"));
+// 多字段查询
+request.source().query(QueryBuilders.multiMatchQuery("Sunny", "OriginWeather", "DestWeather"));
+```
+
+
+而结果解析代码则完全一致，可以抽取并共享。
+
+### 精确查询
+
+精确查询主要是两者：
+
++   term：词条精确匹配
++   range：范围查询
+
+与之前的查询相比，差异同样在查询条件，其它都一样。
+
+查询条件构造的API如下：
+```java
+QueryBuilders.termQuery("DestCountry", "CN");
+QueryBuilders.rangeQuery("FlightTimeMin").gte(100).lte(400);
+```
+
+### 地理查询
+
+DSL查询
+
+```shell
+GET /kibana_sample_data_flights/_search
+{
+  
+  "query": {
+    "geo_distance": {
+      "distance" : "50km",
+      "OriginLocation" : "44.7, 11.6"
+    }
+  }
+}
+```
+代码如下
+
+```java
+@Test
+public void testGeoSearch() throws IOException {
+
+    SearchRequest request = new SearchRequest("kibana_sample_data_flights");
+    // 单字段查询
+    request.source().query(QueryBuilders.matchQuery("DestCountry", "CN"));
+    request.source().from(0).size(20);
+    // 先按照时间，再按照距离排序
+    request.source()
+            .sort(SortBuilders.fieldSort("FlightTimeMin").order(SortOrder.ASC))
+            .sort(SortBuilders.geoDistanceSort("DestLocation", 31.194265D, 121.44156D)
+            .order(SortOrder.ASC).unit(DistanceUnit.KILOMETERS));
+    SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+    SearchHits searchHits = response.getHits();
+    // 解析数据
+    SearchHit[] hits = searchHits.getHits();
+    log.info("总条数 {}, 结果条数为 {}  结果数据 \r\n {}", searchHits.getTotalHits().value, hits.length, response.toString());
+}
+
+```
+
+### 布尔查询
+
+布尔查询是用must、must_not、filter等方式组合其它查询，代码示例如下：
+
+![image](/images/java/es/2729274-20230205173858188-382428581.png)
+
+可以看到，API与其它查询的差别同样是在查询条件的构建，QueryBuilders，结果解析等其他代码完全不变。
+
+代码如下
+
+```java
+
+/**
+ * 布尔查询
+ * @throws IOException
+ */
+@Test
+public void testBoolQuery() throws IOException {
+    SearchRequest request = new SearchRequest("kibana_sample_data_flights");
+    BoolQueryBuilder boolQuery = QueryBuilders.boolQuery();
+    boolQuery.must(QueryBuilders.termQuery("DestCountry", "CN"));
+    boolQuery.mustNot(QueryBuilders.multiMatchQuery("Rain", "OriginWeather", "DestWeather"));
+    boolQuery.filter(QueryBuilders.rangeQuery("AvgTicketPrice").lte(300));
+    request.source().query(boolQuery);
+    request.source().from(0).size(10);
+    request.source().sort("AvgTicketPrice");
+    SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+    log.info("查询结果为 {}", response.toString());
+}
+```
+
+### 算分函数查询
+
+> java代码逻辑：添加一个isAD字段，在算分函数的filter中判断`isAD=ture`就进行重新算分
+
+function_score查询结构如下：
+
+![image](/images/java/es/2729274-20230205173906160-2115196651.png)
+
+对应的JavaAPI如下：
+
+![image](/images/java/es/2729274-20230205173910417-2019314328.png)
+
+我们可以将上一步的布尔查询作为**原始查询**条件放到query中，接下来就是添加**过滤条件**、**算分函数**、**加权模式**了。
+
+```java
+FunctionScoreQueryBuilder functionScoreQueryBuilder = QueryBuilders.functionScoreQuery(
+        boolQuery, new FunctionScoreQueryBuilder.FilterFunctionBuilder[]{
+        new FunctionScoreQueryBuilder.FilterFunctionBuilder(
+        QueryBuilders.multiMatchQuery("Sunny", "DestWeather", "OriginWeather"),
+        ScoreFunctionBuilders.weightFactorFunction(10F)
+        )
+        });
+
+```
+
+## 设置搜索结果
+
+### 排序和分页
+
+搜索结果的排序和分页是与query同级的参数，因此同样是使用request.source()来设置。
+
+```java
+request.source().from(0).size(10);
+request.source().sort("AvgTicketPrice");
+```
+### 高亮
+
+
+高亮的代码与之前代码差异较大，有两点：
+
++   查询的DSL：其中除了查询条件，还需要添加高亮条件，同样是与query同级。
++   结果解析：结果除了要解析_source文档数据，还要解析高亮结果
+
+**1）高亮请求构建**
+
+高亮请求的构建API如下：
+
+![image](/images/java/es/2729274-20230205173927424-735344633.png)
+
+上述代码省略了查询条件部分，但是大家不要忘了：高亮查询必须使用全文检索查询，并且要有搜索关键字，将来才可以对关键字高亮。
+
+完整代码如下：
+
+```java
+@Test
+void testHighlight() throws IOException {
+    // 1.准备Request
+    SearchRequest request = new SearchRequest("hotel");
+    // 2.准备DSL
+    // 2.1.query
+    request.source().query(QueryBuilders.matchQuery("all", "如家"));
+    // 2.2.高亮
+    request.source().highlighter(new HighlightBuilder().field("name").requireFieldMatch(false));
+    // 3.发送请求
+    SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+    // 4.解析响应
+    handleResponse(response);
+}
+```
+**2）高亮结果解析**
+
+高亮的结果与查询的文档结果默认是分离的，并不在一起。
+
+因此解析高亮的代码需要额外处理：
+
+![image](/images/java/es/2729274-20230205173934109-1738654654.png)
+
+代码解读：
+
++   第一步：从结果中获取source。hit.getSourceAsString()，这部分是非高亮结果，json字符串。还需要反序列为HotelDoc对象
++   第二步：获取高亮结果。hit.getHighlightFields()，返回值是一个Map，key是高亮字段名称，值是HighlightField对象，代表高亮值
++   第三步：从map中根据高亮字段名称，获取高亮字段值对象HighlightField
++   第四步：从HighlightField中获取Fragments，并且转为字符串。这部分就是真正的高亮字符串了
++   第五步：用高亮的结果替换HotelDoc中的非高亮结果
+
+### 聚合
+
+聚合条件与query条件同级别，因此需要使用request.source()来指定聚合条件。
+
+
+聚合条件的语法：
+
+![image](/images/java/es/2729274-20230205173941332-769786160.png)
+
+聚合的结果也与查询结果不同，API也比较特殊。不过同样是JSON逐层解析：
+
+![image](/images/java/es/2729274-20230205173947241-344347749.png)
+
+示例代码，对按照机场id和航空公司进行聚合
+
+```java
+    /**
+     * 对查询结果进行聚合  DSL 语句为
+     * GET /kibana_sample_data_flights/_search
+     * {
+     *   "query": {"match": {
+     *     "DestCountry": "CN"
+     *   }},
+     *   "size": 0,
+     *   "aggs": {
+     *     "airportIdAggs": {
+     *       "terms": {
+     *         "field": "DestAirportID",
+     *         "size": 10,
+     *         "order": {
+     *           "_count": "desc"
+     *         }
+     *       }
+     *     },
+     *     "CarrierAggs":{
+     *       "terms": {
+     *         "field": "Carrier",
+     *         "size": 10
+     *       }
+     *     }
+     *   }
+     * }
+     *
+     * @throws IOException
+     */
+    @Test
+    public void testAggs() throws IOException {
+        SearchRequest request = new SearchRequest("kibana_sample_data_flights");
+        BoolQueryBuilder boolQuery = QueryBuilders.boolQuery();
+        boolQuery.must(QueryBuilders.termQuery("DestCountry", "CN"));
+        request.source().query(boolQuery);
+        request.source().size(0);
+        request.source().aggregation(AggregationBuilders.terms("airportIdAggs")
+                .size(10).field("DestAirportID").order(BucketOrder.count(false)));
+        request.source().aggregation(AggregationBuilders.terms("CarrierAggs")
+                .size(10).field("Carrier").order(BucketOrder.count(false)));
+        SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+        log.info("查询结果为 {}", response.toString());
+        Aggregations aggregations = response.getAggregations();
+        Terms airportIdTerms = aggregations.get("airportIdAggs");
+        List<? extends Terms.Bucket> airportIdBuckets =  airportIdTerms.getBuckets();
+        for (Terms.Bucket idBucket : airportIdBuckets) {
+            log.info(" key {} 的数量为 {}", idBucket.getKeyAsString(), idBucket.getDocCount());
+        }
+
+    }
+```
 
 **参考文章**
 
