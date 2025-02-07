@@ -283,6 +283,32 @@ elasticsearch.hosts: ["http://127.0.0.1:9200"]
 
 http://localhost:5601/app/discover
 
+## 配置密码访问 
+
+参考官方文档 [security-minimal-setup](https://www.elastic.co/guide/en/elasticsearch/reference/7.12/security-minimal-setup.html#_prerequisites_10)
+
+1. Stop both Kibana and Elasticsearch if they are running
+2. 修改 `ES_PATH_CONF/elasticsearch.yml` 文件， 并设置为 true
+
+```shell
+xpack.security.enabled: true 
+xpack.security.transport.ssl.enabled: true
+```
+3. 启动es， `./elasticsearch -d`
+4. 生成随机密码 `./bin/elasticsearch-setup-passwords auto`
+5. 设置密码之后， 不能二次执行 `elasticsearch-setup-passwords`
+6. 修改 `KIB_PATH_CONF/kibana.yml` , 添加
+
+> elasticsearch.username: "kibana_system"
+
+7. Create the Kibana keystore
+> ./bin/kibana-keystore create
+
+8. Add the password for the kibana_system user to the Kibana keystore
+> ./bin/kibana-keystore add elasticsearch.password
+
+9. 启动kibana
+
 ## 安装分词器
 
 1. 下载地址  https://release.infinilabs.com/analysis-ik/stable/
