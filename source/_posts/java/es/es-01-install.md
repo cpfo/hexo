@@ -162,7 +162,7 @@ fi
 
 ```
 
-* 修改内存
+* 修改内存  `config/jvm.options`
 
 ```shell
 -Xms1024m
@@ -185,10 +185,12 @@ fi
 
 ### 修改配置
 
+修改文件 elasticsearch.yml
+
 * 修改ip
 > network.host: 0.0.0.0 
 
-* 初始化节点名称
+* 初始化节点名称 
 ```shell
 cluster.name: elasticsearch 
 node.name: es-node0
@@ -308,6 +310,168 @@ xpack.security.transport.ssl.enabled: true
 > ./bin/kibana-keystore add elasticsearch.password
 
 9. 启动kibana
+
+## ES集群
+
+### 集群安装
+
+因为本地机器有限，所以在同一台机器上进行集群的安装。
+
+1. 将 elasticsearch-7.12.1-linux-x86_64.tar.gz 解压后复制成三份，分别修改对应的配置
+2. 配置信息如下:
+```shell
+# node-1
+cluster.initial_master_nodes: ["node-1", "node-2", "node-3"]
+cluster.name: es-cluster
+discovery.seed_hosts: ["node-1:9205", "node-2:9206", "node-3:9207"]
+network.host: 0.0.0.0
+http.port: 9200
+node.name: node-1
+transport.port: 9205
+
+# node-2 前面几项一样
+http.port: 9201
+node.name: node-2
+transport.port: 9206
+
+# node-3
+http.port: 9202
+node.name: node-2
+transport.port: 9207
+```
+3. 修改 hosts 中映射
+```shell
+10.1.40.136 node-1
+10.1.40.136 node-2
+10.1.40.136 node-3
+```
+
+4. 调整 jvm.options 内存，按实际调整
+5. 分别启动各个node，观察启动日志和状态。
+6. 查看集群是否启动成功
+> curl http://localhost:9202/_cat/nodes?v
+
+```shell
+ip          heap.percent ram.percent cpu load_1m load_5m load_15m node.role   master name
+10.1.40.136           54          70   2    0.05    0.05     0.05 cdfhilmrstw *      node-1
+10.1.40.136           25          70   2    0.05    0.05     0.05 cdfhilmrstw -      node-2
+10.1.40.136           30          70   2    0.05    0.05     0.05 cdfhilmrstw -      node-3
+
+* 表示是 master 节点
+
+```
+7. 查看健康情况
+
+```shell
+curl http://localhost:9202/_cat/health?v
+
+epoch      timestamp cluster    status node.total node.data shards pri relo init unassign pending_tasks max_task_wait_time active_shards_percent
+1739178458 09:07:38  es-cluster green           3         3     42  18    0    0        0             0                  -                100.0%
+
+```
+
+#### 集群监控
+
+推荐使用cerebro来监控es集群状态，官方网址：https://github.com/lmenezes/cerebro 
+
+需要JDK11以上，[下载地址](https://cfdownload.adobe.com/pub/adobe/coldfusion/java/java11/java11026/jdk-11.0.26_linux-x64_bin.tar.gz) 。
+
+#### 创建索引
+
+> 创建索引库的时候需要设置分片数量（其他还有多少个ES服务在该集群）以及副本数量（本服务的数据拷贝几份）
+
+```shell
+PUT /testshared
+{
+  "settings": {
+    "number_of_shards": 3, // 分片数量
+    "number_of_replicas": 1 // 副本数量
+  },
+  "mappings": {
+    "properties": {
+      // mapping映射定义 ...
+    }
+  }
+}
+```
+
+可以在监控上查看分片效果
+
+![image](/images/java/es/2729274-20230205174428188-794591883.png)
+
+
+### 集群脑裂问题
+
+
+> master eligible节点的作用是什么？
+>
+> +   参与集群选主
+> +   主节点可以管理集群状态、管理分片信息、处理创建和删除索引库的请求
+>
+> data节点的作用是什么？
+>
+> +   数据的CRUD
+>
+> coordinator节点的作用是什么？
+>
+> +   路由请求到其它节点
+>
+> +   合并查询到的结果，返回给用户
+>
+
+#### 集群职责划分
+
+
+> 通过改变配置文件中的 true——> false 来改变职责。如data数据职责节点就只保留data为true其他为false
+>
+> 注意：每个节点都是路由，这样可以保证不管哪个节点接收到请求可以分给其他人已经从其他人那接收信息。
+
+elasticsearch中集群节点有不同的职责划分：
+
+![image](/images/java/es/2729274-20230205174437248-89466588.png)
+
+默认情况下，集群中的任何一个节点都同时具备上述四种角色。
+
+但是真实的集群一定要将集群职责分离：（因为不同职责对CPU要求不同）
+
++   master节点：对CPU要求高，但是内存要求低
++   data节点：对CPU和内存要求都高
++   coordinating节点：对网络带宽、CPU要求高
+
+职责分离可以让我们根据不同节点的需求分配不同的硬件去部署。而且避免业务之间的互相干扰。
+
+一个典型的es集群职责划分如图：
+![image](/images/java/es/2729274-20230205174442439-1069765383.png)
+
+#### 脑裂问题
+
+> ES 7.0后默认配置了 **( eligible节点数量 + 1 ）/ 2** 来解决脑裂问题
+
+脑裂是因为集群中的节点失联导致的。
+
+例如一个集群中，主节点与其它节点失联：
+
+![image](/images/java/es/2729274-20230205174447612-1377452674.png)
+
+此时，node2和node3认为node1宕机，就会重新选主：
+
+![image](/images/java/es/2729274-20230205174453080-1677763578.png)
+
+当node3当选后，集群继续对外提供服务，node2和node3自成集群，node1自成集群，两个集群数据不同步，出现数据差异。
+
+当网络恢复后，因为集群中有两个master节点，集群状态的不一致，出现脑裂的情况：
+
+![image](/images/java/es/2729274-20230205174457820-447955706.png)
+
+解决脑裂的方案是，要求选票超过 **( eligible节点数量 + 1 ）/ 2** 才能当选为主，因此eligible节点数量最好是奇数。对应配置项是discovery.zen.minimum_master_nodes，在es7.0以后，已经成为默认配置，因此一般不会发生脑裂问题
+
+例如：3个节点形成的集群，选票必须超过 （3 + 1） / 2 ，也就是2票。node3得到node2和node3的选票，当选为主。node1只有自己1票，没有当选。集群中依然只有1个主节点，没有出现脑裂。
+
+### 集群分布式存储
+
+当新增文档时，应该保存到不同分片，保证数据均衡，那么coordinating node如何确定数据该存储到哪个分片呢？
+
+
 
 ## 安装分词器
 

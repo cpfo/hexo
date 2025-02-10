@@ -458,5 +458,6 @@ elasticsearch中的数据来自于mysql数据库，因此mysql数据发生改变
 + mysql完成增、删、改操作都会记录在binlog中
 + hotel-demo基于canal监听binlog变化，实时更新elasticsearch中的内容
 
-## 实现数据同步
+
+
 
