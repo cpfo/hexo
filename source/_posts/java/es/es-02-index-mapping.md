@@ -21,7 +21,10 @@ date: 2025-01-17 13:39:45
 |索引列表 | GET | /_cat/indices?v | - |
 |创建索引 | PUT | /indexName | - |
 |查看设置 | GET | /indexname/_settings | - |
-
+/查看映射| GET  | /indexname/_mapping | - |
+|关闭索引| POST | /name/_close | - | 
+|打开索引| POST | /name/_open | - | 
+|删除索引| DELETE | /name | - | 
 
 
 
