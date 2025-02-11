@@ -10,6 +10,21 @@ date: 2025-01-17 13:39:45
 <!-- more -->
 
 
+# 常用API
+
+常用api列表 [rest-apis.html](https://www.elastic.co/guide/en/elasticsearch/reference/7.12/rest-apis.html) 
+
+|  操作   | 方式  | 接口 | 参数 |
+|  ----  | ----  |---- | ----|
+| 集群健康| GET | /_cat/health?v | - |
+| 节点列表| GET | /_cat/nodes?v  | - |
+|索引列表 | GET | /_cat/indices?v | - |
+|创建索引 | PUT | /indexName | - |
+|查看设置 | GET | /indexname/_settings | - |
+
+
+
+
 # 索引库操作
 
 索引库就类似数据库表，mapping映射就类似表的结构。
