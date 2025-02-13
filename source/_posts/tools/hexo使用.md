@@ -25,20 +25,6 @@ $ hexo new "My New Post"
 More info: [Writing](https://hexo.io/docs/writing.html)
 
 
-## 网址
-
-按照官网文档上 [配置](https://hexo.io/zh-cn/docs/configuration#%E7%BD%91%E5%9D%80) 的说明，配置后，部署到username.github.io 之后，发现访问时部分资源加载失败。
-
-感觉这种方式仅适合项目页面，[参考](https://hexo.io/zh-cn/docs/github-pages#%E9%A1%B9%E7%9B%AE%E9%A1%B5%E9%9D%A2)
-
-因为username.github.io里面的内容部署完成之后，地址是 https://username.github.io 
-
-> ### 网站存放在子目录
-> 如果您的网站存放在子目录中，例如 http://example.com/blog，则请将您的 url 设为 http://example.com/blog 并把 root 设为 /blog/。
-
-上面的 `blog` 应该是github上对应的repo的名称
-
-
 ### Run server
 
 ``` bash
@@ -72,3 +58,18 @@ More info: [Deployment](https://hexo.io/docs/deployment.html)
 效果如下:
 
 ![](/images/assets/40703300-d32f-11ea-938e-f5ee97dc461f.jpg)
+
+
+
+## 网址
+
+按照官网文档上 [配置](https://hexo.io/zh-cn/docs/configuration#%E7%BD%91%E5%9D%80) 的说明，配置后，部署到username.github.io 之后，发现访问时部分资源加载失败。
+
+感觉这种方式仅适合项目页面，[参考](https://hexo.io/zh-cn/docs/github-pages#%E9%A1%B9%E7%9B%AE%E9%A1%B5%E9%9D%A2)
+
+因为username.github.io里面的内容部署完成之后，地址是 https://username.github.io
+
+> ### 网站存放在子目录
+> 如果您的网站存放在子目录中，例如 http://example.com/blog，则请将您的 url 设为 http://example.com/blog 并把 root 设为 /blog/。
+
+上面的 `blog` 应该是github上对应的repo的名称
